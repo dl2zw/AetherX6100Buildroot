@@ -3,11 +3,12 @@
 start() {
     cd /
 
-    for i in /mnt/x6100_r1cbu_*.tgz ;do
+    for i in /mnt/x6100_r1cbu_*.tgz; do
         [ ! -f "$i" ] && continue
-
+        echo "Creating backup from $i"
+        zcat $i | tar -tf - | xargs tar -cvf - | gzip > /mnt/backup_$(basename $i)
         echo "Update from $i"
-        zcat $i | tar -x
+        zcat $i | tar -xf -
         rm $i
     done
 }
