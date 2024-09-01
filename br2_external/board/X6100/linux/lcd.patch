@@ -21,7 +21,7 @@ diff -Naur orig/drivers/gpu/drm/panel/Makefile my/drivers/gpu/drm/panel/Makefile
 diff -Naur orig/drivers/gpu/drm/panel/panel-jinglitai-jlt4013a.c my/drivers/gpu/drm/panel/panel-jinglitai-jlt4013a.c
 --- orig/drivers/gpu/drm/panel/panel-jinglitai-jlt4013a.c	1970-01-01 03:00:00.000000000 +0300
 +++ my/drivers/gpu/drm/panel/panel-jinglitai-jlt4013a.c	2023-01-30 03:22:15.521007934 +0300
-@@ -0,0 +1,528 @@
+@@ -0,0 +1,549 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Driver for the Jinglitai JLT4013A LCD Panel.
