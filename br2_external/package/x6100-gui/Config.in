@@ -1,0 +1,6 @@
+config BR2_PACKAGE_X6100_GUI
+	bool "x6100_gui"
+	depends on BR2_PACKAGE_AETHER_X6100_CONTROL
+	depends on BR2_PACKAGE_RHVOICE
+	help
+	  X6100 GUI application
