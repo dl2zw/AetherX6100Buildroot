@@ -1,0 +1,11 @@
+--- old/src/fft/src/spgram.c	2024-05-31 10:23:57.347285968 +0300
++++ new/src/fft/src/spgram.c	2024-05-31 10:24:16.323363933 +0300
+@@ -414,7 +414,7 @@
+     // compute magnitude (linear) and run FFT shift
+     unsigned int i;
+     unsigned int nfft_2 = _q->nfft / 2;
+-    T scale = _q->accumulate ? 1.0f / max(1,_q->num_transforms) : 0.0f;
++    T scale = _q->accumulate ? 1.0f / max(1,_q->num_transforms) : 1.0f;
+     // TODO: adjust scale if infinite integration
+     for (i=0; i<_q->nfft; i++) {
+         unsigned int k = (i + nfft_2) % _q->nfft;
