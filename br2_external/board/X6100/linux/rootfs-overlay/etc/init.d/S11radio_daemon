@@ -1,45 +1,12 @@
 #!/bin/sh
 
-# keyboard backlight gpio: PE15,143
-_KBLGPIO="143"
-_KBLDEV="/sys/class/gpio/gpio${_KBLGPIO}"
-
-_CIVGPIO="138"
-_CIVDEV="/sys/class/gpio/gpio${_CIVGPIO}"
-
 case "$1" in
     start)
-        # init gpios
-        if [ ! -d ${_KBLDEV} ]; then
-            echo ${_KBLGPIO} > /sys/class/gpio/export
-        fi
-        echo "out" > ${_KBLDEV}/direction
-        echo 1     > ${_KBLDEV}/value
-
-        if [ ! -d ${_CIVDEV} ]; then
-            echo ${_CIVGPIO} > /sys/class/gpio/export
-        fi
-        echo "out" > ${_CIVDEV}/direction
-
         # create DNS soft link
         ln -sf /run/NetworkManager/resolv.conf /etc/resolv.conf
         # show power on wellcome screen
         ;;
     stop)
-        # deinit gpios
-        if [ -d ${_KBLDEV} ]; then        # create DNS soft link
-        ln -sf /run/NetworkManager/resolv.conf /etc/resolv.conf
-
-            echo 1    > ${_KBLDEV}/value
-            echo "in" > ${_KBLDEV}/direction
-            echo ${_KBLGPIO}  > /sys/class/gpio/unexport
-            fi
-
-        if [ -d ${_CIVDEV} ]; then
-            echo "in" > ${_CIVDEV}/direction
-            echo ${_CIVGPIO}  > /sys/class/gpio/unexport
-            fi
-
         # show power off goodbye screen
         ;;
     *)
