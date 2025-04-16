@@ -16,6 +16,8 @@
 
 	aliases {
 		serial0 = "/soc/serial@1c28000";
+		mmc0 = &mmc0;
+		mmc2 = &mmc2;
 	};
 
 	chosen {
@@ -211,50 +213,38 @@
 &i2c0 {
     status = "okay";
 
-    compatible = "i2c-gpio";
-    scl-gpios = <&pio 7 2 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-    sda-gpios = <&pio 7 3 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-    i2c-gpio,sda-open-drain;
-    i2c-gpio,scl-open-drain;
-    i2c-gpio,delay-us = <2>;
-
-    /delete-property/ reg;
-    /delete-property/ interrupts;
-    /delete-property/ clocks;
-    /delete-property/ resets;
+	compatible = "allwinner,sun6i-a31-i2c";
+	reg = <0x1c2ac00 0x400>;
+	interrupts = <GIC_SPI 0x06 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&ccu CLK_BUS_I2C0>;
+	resets = <&ccu RST_BUS_I2C0>;
 };
 
 &i2c0_pins {
-    function = "gpio_out";
+    function = "i2c0";
 };
 
 &i2c1 {
 	status = "okay";
 
-    compatible = "i2c-gpio";
-    scl-gpios = <&pio 7 4 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-    sda-gpios = <&pio 7 5 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
-    i2c-gpio,sda-open-drain;
-    i2c-gpio,scl-open-drain;
-    i2c-gpio,delay-us = <2>;
-
-    /delete-property/ reg;
-    /delete-property/ interrupts;
-    /delete-property/ clocks;
-    /delete-property/ resets;
+	compatible = "allwinner,sun6i-a31-i2c";
+	reg = <0x1c2b000 0x400>;
+	interrupts = <GIC_SPI 0x07 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&ccu CLK_BUS_I2C1>;
+	resets = <&ccu RST_BUS_I2C1>;
 
 	rtc@51 {
 		compatible = "nxp,pcf8563";
 		reg = <0x51>;
 		interrupt-parent = <&pio>;
-		interrupts = <6 13 0x02>;			/* PG13 */
+		interrupts = <6 13 IRQ_TYPE_EDGE_FALLING>;			/* PG13 */
 		interrupt-names = "irq";
 		irq-gpios = <&pio 6 13 GPIO_ACTIVE_HIGH>;
 	};
 };
 
 &i2c1_pins {
-    function = "gpio_out";
+    function = "i2c0";
 };
 
 &mmc0 {
@@ -367,8 +357,8 @@
 &reg_dcdc1 {
 	regulator-name = "vcc-3v0";
 	regulator-always-on;
-	regulator-min-microvolt = <3300000>;
-	regulator-max-microvolt = <3300000>;
+	regulator-min-microvolt = <3000000>;
+	regulator-max-microvolt = <3000000>;
 };
 
 &reg_dcdc2 {
@@ -530,7 +520,7 @@
 	usb0_id_det-gpios = <&pio 7 8 GPIO_ACTIVE_HIGH>;	/* PH8 */
 	usb0_vbus_power-supply = <&usb_power_supply>;
 	usb0_vbus-supply = <&reg_usb0_vbus>;
-	usb1_vbus-supply = <&reg_vcc5v0>;
+	usb1_vbus-supply = <&reg_usb1_vbus>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb0_id_detect_pin0>;
 };
