@@ -213,25 +213,37 @@
 &i2c0 {
     status = "okay";
 
-	compatible = "allwinner,sun6i-a31-i2c";
-	reg = <0x1c2ac00 0x400>;
-	interrupts = <GIC_SPI 0x06 IRQ_TYPE_LEVEL_HIGH>;
-	clocks = <&ccu CLK_BUS_I2C0>;
-	resets = <&ccu RST_BUS_I2C0>;
+    compatible = "i2c-gpio";
+    scl-gpios = <&pio 7 2 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+    sda-gpios = <&pio 7 3 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+    i2c-gpio,sda-open-drain;
+    i2c-gpio,scl-open-drain;
+    i2c-gpio,delay-us = <2>;
+
+    /delete-property/ reg;
+    /delete-property/ interrupts;
+    /delete-property/ clocks;
+    /delete-property/ resets;
 };
 
 &i2c0_pins {
-    function = "i2c0";
+    function = "gpio_out";
 };
 
 &i2c1 {
 	status = "okay";
 
-	compatible = "allwinner,sun6i-a31-i2c";
-	reg = <0x1c2b000 0x400>;
-	interrupts = <GIC_SPI 0x07 IRQ_TYPE_LEVEL_HIGH>;
-	clocks = <&ccu CLK_BUS_I2C1>;
-	resets = <&ccu RST_BUS_I2C1>;
+    compatible = "i2c-gpio";
+    scl-gpios = <&pio 7 4 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+    sda-gpios = <&pio 7 5 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+    i2c-gpio,sda-open-drain;
+    i2c-gpio,scl-open-drain;
+    i2c-gpio,delay-us = <2>;
+
+    /delete-property/ reg;
+    /delete-property/ interrupts;
+    /delete-property/ clocks;
+    /delete-property/ resets;
 
 	rtc@51 {
 		compatible = "nxp,pcf8563";
@@ -244,7 +256,7 @@
 };
 
 &i2c1_pins {
-    function = "i2c1";
+    function = "gpio_out";
 };
 
 &mmc0 {
