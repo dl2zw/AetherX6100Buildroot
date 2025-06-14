@@ -1,0 +1,26 @@
+diff --color -Naur a/include/ffi_common.h b/include/ffi_common.h
+--- a/include/ffi_common.h	2022-10-23 17:23:27.000000000 +0200
++++ b/include/ffi_common.h	2024-10-19 10:36:11.390168000 +0200
+@@ -128,6 +128,8 @@
+    static trampoline. */
+ int ffi_tramp_is_present (void *closure) FFI_HIDDEN;
+ 
++int open_temp_exec_file(void) FFI_HIDDEN;
++
+ /* Extended cif, used in callback from assembly routine */
+ typedef struct
+ {
+diff --color -Naur a/src/tramp.c b/src/tramp.c
+--- a/src/tramp.c	2022-10-23 17:23:27.000000000 +0200
++++ b/src/tramp.c	2024-10-19 10:27:48.696097000 +0200
+@@ -39,6 +39,10 @@
+ #ifdef __linux__
+ #define _GNU_SOURCE 1
+ #endif
++
++#include <ffi.h>
++#include <ffi_common.h>
++
+ #include <stdio.h>
+ #include <unistd.h>
+ #include <stdlib.h>
