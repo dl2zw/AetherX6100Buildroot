@@ -1,0 +1,4 @@
+[submodule "buildroot"]
+	path = buildroot
+	url = https://github.com/dl2zw/buildroot.git
+	branch = dl2zw
