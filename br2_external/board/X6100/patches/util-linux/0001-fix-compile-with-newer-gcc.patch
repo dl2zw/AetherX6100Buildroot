@@ -1,6 +1,6 @@
 diff --color -Naur a/configure.ac b/configure.ac
 --- a/configure.ac	2022-03-28 13:33:39.000000000 +0200
-+++ b/configure.ac	2024-10-19 09:43:24.794347000 +0200
++++ b/configure.ac	2025-09-21 09:58:56.294878577 +0200
 @@ -339,6 +339,7 @@
  	sys/mkdev.h \
  	sys/mount.h \
@@ -11,13 +11,15 @@ diff --color -Naur a/configure.ac b/configure.ac
  	sys/sendfile.h \
 diff --color -Naur a/include/pidfd-utils.h b/include/pidfd-utils.h
 --- a/include/pidfd-utils.h	2022-02-17 11:28:41.000000000 +0100
-+++ b/include/pidfd-utils.h	2024-10-19 09:47:51.846638000 +0200
-@@ -4,6 +4,9 @@
++++ b/include/pidfd-utils.h	2025-09-21 10:07:31.819564771 +0200
+@@ -4,6 +4,11 @@
  #ifdef HAVE_SYS_SYSCALL_H
  # include <sys/syscall.h>
  # if defined(SYS_pidfd_send_signal) && defined(SYS_pidfd_open)
++#  if (__GNUC__ > 12)
 +#  ifdef HAVE_SYS_PIDFD_H
 +#  include <sys/pidfd.h>
++#  endif
 +#  endif
  #  include <sys/types.h>
  
