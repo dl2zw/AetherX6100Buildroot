@@ -1,0 +1,6 @@
+# SUBSYSTEM=="bluetooth", ACTION=="add", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", RUN+="/usr/bin/bt_start.sh"
+# On add device
+SUBSYSTEM=="bluetooth", KERNEL=="hci*", ACTION=="add", RUN+="/usr/bin/bt_start.sh"
+
+# On remove device
+SUBSYSTEM=="bluetooth", KERNEL=="hci*", ACTION=="remove", RUN+="/usr/bin/killall -9 rfcomm bt-agent"
