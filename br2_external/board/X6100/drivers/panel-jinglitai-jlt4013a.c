@@ -19,6 +19,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/media-bus-format.h>
 #include <linux/version.h>
+#include <linux/sysfs.h>
 
 #define ST7701S_SWRESET 0x01
 #define ST7701S_SLPOUT 0x11
@@ -55,7 +56,7 @@
 		if ((val = (func))) {                                                   \
 			pr_warn("Jinglitai JLT4013A: SPI write failed with error %d\n", \
 				val);                                                   \
-			return val;                                                     \
+			goto error;                                                     \
 		}                                                                       \
 	} while (0)
 
@@ -87,6 +88,7 @@ struct jlt4013a {
 	struct gpio_desc *reset;
 	struct gpio_desc *dcx;
 	struct regulator *supply;
+	struct mutex lock;
 };
 
 static int st7701s_spi_write(struct jlt4013a *ctx, u8 data)
@@ -132,13 +134,15 @@ static int jlt4013a_prepare(struct drm_panel *panel)
 	int ret;
 	struct jlt4013a *ctx = panel_to_jlt4013a(panel);
 
+	mutex_lock(&ctx->lock);
+
 	/* Enable power supply */
 
 	pr_info("Jinglitai JLT4013A: Trying to enable power supply\n");
 	ret = regulator_enable(ctx->supply);
 	if (ret) {
 		pr_err("Jinglitai JLT4013A: Failed to enable power supply\n");
-		return ret;
+		goto error;
 	}
 	msleep(120);
 	pr_info("Jinglitai JLT4013A: Enabled power supply\n");
@@ -410,6 +414,12 @@ static int jlt4013a_prepare(struct drm_panel *panel)
 	msleep(120);
 
 	pr_info("Jinglitai JLT4013A: Panel is initialized\n");
+
+	mutex_unlock(&ctx->lock);
+	return 0;
+
+error:
+	mutex_unlock(&ctx->lock);
 	return ret;
 }
 
@@ -469,15 +479,75 @@ static enum drm_panel_orientation jlt4013a_get_orientation(struct drm_panel *pan
     enum drm_panel_orientation orientation;
     int ret;
 
-    // Считываем стандартное DRM-свойство "rotation" из узла DTS
     ret = of_drm_get_panel_orientation(panel->dev->of_node, &orientation);
-    if (ret < 0) {
-        // Если в DTS свойство не задано, возвращаем дефолтное (без поворота)
+    if (ret < 0)
         return DRM_MODE_PANEL_ORIENTATION_UNKNOWN;
-    }
 
     return orientation;
 }
+
+/* --- sysfs immed_msg interface --- */
+
+static ssize_t immed_msg_store(struct device *dev,
+                               struct device_attribute *attr,
+                               const char *buf, size_t count)
+{
+    struct jlt4013a *ctx = dev_get_drvdata(dev);
+    u8 bytes[64];
+    int nbytes = 0;
+    int ret;
+    char *workbuf, *token, *next;
+    int i;
+
+    if (count == 0 || count > 191)
+        return -EINVAL;
+
+    workbuf = kstrdup(buf, GFP_KERNEL);
+    if (!workbuf)
+        return -ENOMEM;
+
+    next = workbuf;
+    while ((token = strsep(&next, " \t\n")) != NULL) {
+        if (*token == '\0')   /* skip empty tokens */
+            continue;
+        if (nbytes >= ARRAY_SIZE(bytes))
+            break;
+        if (kstrtou8(token, 16, &bytes[nbytes]) < 0) {
+            kfree(workbuf);
+            return -EINVAL;
+        }
+        nbytes++;
+    }
+    kfree(workbuf);
+
+    if (nbytes == 0)
+        return -EINVAL;
+
+    mutex_lock(&ctx->lock);
+
+    ret = st7701s_write_command(ctx, bytes[0]);
+    if (ret)
+        goto out_unlock;
+
+    for (i = 1; i < nbytes; i++) {
+        ret = st7701s_write_data(ctx, bytes[i]);
+        if (ret)
+            goto out_unlock;
+    }
+
+out_unlock:
+    mutex_unlock(&ctx->lock);
+    return ret ? ret : count;
+}
+static DEVICE_ATTR_WO(immed_msg);
+
+static struct attribute *jlt4013a_attrs[] = {
+    &dev_attr_immed_msg.attr,
+    NULL,
+};
+static const struct attribute_group jlt4013a_attr_group = {
+    .attrs = jlt4013a_attrs,
+};
 
 static const struct drm_panel_funcs jlt4013afuncs = {
 	.prepare = jlt4013a_prepare,
@@ -491,16 +561,15 @@ static const struct drm_panel_funcs jlt4013afuncs = {
 static int jlt4013a_probe(struct spi_device *spi)
 {
 	int err;
-
 	struct device *dev = &spi->dev;
-
 	struct jlt4013a *ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
-	if (ctx == NULL) {
+	if (ctx == NULL)
 		return -EAGAIN;
-	}
 
 	ctx->spi = spi;
 	spi_set_drvdata(spi, ctx);
+
+	mutex_init(&ctx->lock);
 
 	ctx->supply = devm_regulator_get(dev, "power");
 	if (IS_ERR(ctx->supply)) {
@@ -530,6 +599,11 @@ static int jlt4013a_probe(struct spi_device *spi)
 
 	drm_panel_add(&ctx->panel);
 
+	/* Create sysfs group */
+	err = sysfs_create_group(&dev->kobj, &jlt4013a_attr_group);
+	if (err)
+		dev_warn(dev, "Failed to create sysfs group: %d\n", err);
+
 	return 0;
 }
 
@@ -538,14 +612,18 @@ static void jlt4013a_remove(struct spi_device *spi)
 {
 	struct jlt4013a *ctx = spi_get_drvdata(spi);
 
-	drm_panel_remove(&(ctx->panel));
+	sysfs_remove_group(&spi->dev.kobj, &jlt4013a_attr_group);
+	drm_panel_remove(&ctx->panel);
+	mutex_destroy(&ctx->lock);
 }
 #else
 static int jlt4013a_remove(struct spi_device *spi)
 {
 	struct jlt4013a *ctx = spi_get_drvdata(spi);
 
-	drm_panel_remove(&(ctx->panel));
+	sysfs_remove_group(&spi->dev.kobj, &jlt4013a_attr_group);
+	drm_panel_remove(&ctx->panel);
+	mutex_destroy(&ctx->lock);
 	return 0;
 }
 #endif
