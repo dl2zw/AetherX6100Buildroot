@@ -1,0 +1,5 @@
+config BR2_LINUX_KERNEL_EXT_JLT4013A
+    bool "DRM Panel Jinglitai JLT4013A Driver"
+    help
+      This extension injects the Jinglitai JLT4013A DRM panel driver
+      directly into the Linux kernel driver tree.
