@@ -1,0 +1,113 @@
+From: X6100 firmware project
+Subject: [PATCH] usb: musb: host: tolerate empty polls on plain ISO IN endpoints
+
+On Allwinner sun8i (A33/R16) the musb host controller raises an RX
+interrupt on a single-transaction ISO IN endpoint (hb_mult == 1) with
+RxPktRdy clear, and usually IncompRx set, when the device had no packet
+for that interval. musb_host_rx() treats both as fatal: IncompRx gives
+-EPROTO ("high bandwidth incomplete ISO packet"), and a missing RxPktRdy
+gives -EPROTO ("Rx interrupt with no errors or packet!"). The URB is
+given back at once, the class driver resubmits, and the endpoint spins
+without ever carrying data.
+
+Seen on the Xiegu X6100: RTL8723BU Bluetooth on musb, btusb SCO,
+17-byte ISO packets, bInterval 4. usbmon showed 538 ISO IN URBs in 80 ms,
+each completing with -EPROTO after ~0.2 ms and zero bytes; the HFP
+microphone never delivered a sample. When the IRQ path was slowed by
+serial-console printk the same stream flowed, so the data is there - it
+is the early empty poll that kills it.
+
+IncompRx only has meaning for high-bandwidth endpoints, so ignore it when
+hb_mult <= 1. When a plain ISO IN interrupt carries no packet, request
+the next one and keep the URB instead of aborting it. After 20000
+consecutive empty polls fall back to the old behaviour, so a device that
+never answers cannot keep the CPU in interrupts.
+
+Only the PIO path is changed; DMA users keep the old behaviour.
+
+---
+--- a/drivers/usb/musb/musb_host.h	2026-09-27 16:08:52.283239606 +0200
++++ b/drivers/usb/musb/musb_host.h	2026-09-27 16:08:52.325914283 +0200
+@@ -38,6 +38,7 @@
+ 	u16			maxpacket;
+ 	u16			frame;		/* for periodic schedule */
+ 	unsigned		iso_idx;	/* in urb->iso_frame_desc[] */
++	u16			iso_empty;	/* consecutive empty ISO IN polls */
+ 	struct sg_mapping_iter sg_miter;	/* for highmem in PIO mode */
+ 	bool			use_sg;		/* to track urb using sglist */
+ };
+--- a/drivers/usb/musb/musb_host.c	2026-09-27 16:08:52.283082666 +0200
++++ b/drivers/usb/musb/musb_host.c	2026-09-27 16:08:52.327838240 +0200
+@@ -434,6 +434,7 @@
+ 			urb->error_count++;
+ 		}
+ 
++		qh->iso_empty = 0;
+ 		d = urb->iso_frame_desc + qh->iso_idx;
+ 		buf = buffer + d->offset;
+ 		length = d->length;
+@@ -1717,6 +1718,42 @@
+ #endif
+ 
+ /*
++ * Plain (non high-bandwidth) ISO IN on Allwinner sun8i (A33/R16) musb:
++ * the controller raises an RX interrupt with RxPktRdy clear - and often
++ * IncompRx set - when the device had no packet for that interval.
++ * Mainline treats both cases as fatal (-EPROTO) and gives the URB back
++ * at once; the class driver resubmits and the endpoint spins without
++ * ever carrying data. Seen with RTL8723BU Bluetooth SCO (btusb, 17-byte
++ * packets, bInterval 4): the HFP microphone never delivered a sample.
++ *
++ * Treat it as "no data yet": ask for the next packet and keep the URB.
++ * After MUSB_ISO_EMPTY_LIMIT consecutive empty polls fall back to the old
++ * behaviour, so a silent device cannot keep the CPU in interrupts.
++ */
++#define MUSB_ISO_EMPTY_LIMIT	20000
++
++static bool musb_iso_rx_rearm(struct musb *musb, struct musb_hw_ep *hw_ep,
++			      struct musb_qh *qh, u16 rx_csr)
++{
++	void __iomem	*epio = hw_ep->regs;
++	u16		val;
++
++	if (qh->type != USB_ENDPOINT_XFER_ISOC || qh->hb_mult > 1)
++		return false;
++	if (rx_csr & MUSB_RXCSR_RXPKTRDY)
++		return false;
++	if (++qh->iso_empty > MUSB_ISO_EMPTY_LIMIT) {
++		qh->iso_empty = 0;
++		return false;
++	}
++
++	val = rx_csr | MUSB_RXCSR_H_WZC_BITS;
++	val |= MUSB_RXCSR_H_REQPKT;
++	musb_writew(epio, MUSB_RXCSR, val);
++	return true;
++}
++
++/*
+  * Service an RX interrupt for the given IN endpoint; docs cover bulk, iso,
+  * and high-bandwidth IN transfer cases.
+  */
+@@ -1812,7 +1849,8 @@
+ 			/* packet error reported later */
+ 			iso_err = true;
+ 		}
+-	} else if (rx_csr & MUSB_RXCSR_INCOMPRX) {
++	} else if ((rx_csr & MUSB_RXCSR_INCOMPRX) &&
++		   !(qh->type == USB_ENDPOINT_XFER_ISOC && qh->hb_mult <= 1)) {
+ 		musb_dbg(musb, "end %d high bandwidth incomplete ISO packet RX",
+ 				epnum);
+ 		status = -EPROTO;
+@@ -1891,6 +1929,11 @@
+ 	} else if (urb->status == -EINPROGRESS) {
+ 		/* if no errors, be sure a packet is ready for unloading */
+ 		if (unlikely(!(rx_csr & MUSB_RXCSR_RXPKTRDY))) {
++			if (!dma && musb_iso_rx_rearm(musb, hw_ep, qh, rx_csr)) {
++				musb_dbg(musb, "end %d ISO IN empty poll, rearm",
++						epnum);
++				return;
++			}
+ 			status = -EPROTO;
+ 			ERR("Rx interrupt with no errors or packet!\n");
+ 
