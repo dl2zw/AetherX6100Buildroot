@@ -27,10 +27,7 @@ running() { ps | grep -v grep | grep -q "$1"; }
 btctl() { bluetoothctl "$@" >/dev/null 2>&1; }
 
 bt_state_ok() {
-    s=$(bluetoothctl show 2>/dev/null)
-    echo "$s" | grep -q "Powered: yes" &&
-    echo "$s" | grep -q "Pairable: yes" &&
-    echo "$s" | grep -q "Discoverable: yes"
+    bluetoothctl show 2>/dev/null | grep -q "Powered: yes"
 }
 
 # Name of every SDP record and its channel, one "name|channel" per line.
@@ -63,28 +60,25 @@ if ! running "bluetoothd"; then
     sleep 1
 fi
 
-# Just Works pairing, the only workable choice on a radio with no keypad.
-# bt_start.sh starts the same agent when the adapter is on at boot.
-if command -v bt-agent >/dev/null 2>&1; then
-    running "bt-agent" || /bin/sh -c "bt-agent --capability=NoInputNoOutput >/dev/null 2>&1 &"
-fi
-
+# Hidden and not pairable. The GUI's Bluetooth window opens pairing for a
+# few minutes when Scan is pressed, and its agent refuses pairing requests
+# the rest of the time, so nobody in range can pair with the radio
+# unasked. For the same reason no bt-agent (which accepts everything) is
+# started here; bt_start.sh still starts one at boot, and the GUI's agent
+# takes the default place from it.
 btctl power on
 btctl system-alias "$NAME"
-btctl pairable on
-btctl discoverable-timeout 0
-btctl discoverable on
-# The adapter can still be settling after power on: repeat until the
-# three settings stick, at most 5 s.
+btctl discoverable off
+btctl pairable off
+# The adapter can still be settling after power on: repeat until it is
+# powered, at most 5 s.
 i=0
 while [ $i -lt 10 ] && ! bt_state_ok; do
     sleep 0.5
     btctl power on
-    btctl pairable on
-    btctl discoverable on
     i=$((i + 1))
 done
-bt_state_ok || log "WARNING: $(bluetoothctl show 2>/dev/null | grep -E 'Powered|Pairable|Discoverable' | tr -s ' \t' ' ')"
+bt_state_ok || log "WARNING: $(bluetoothctl show 2>/dev/null | grep -E 'Powered' | tr -s ' \t' ' ')"
 
 i=0
 while [ $i -lt 10 ]; do
