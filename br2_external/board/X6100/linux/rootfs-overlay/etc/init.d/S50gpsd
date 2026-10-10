@@ -5,7 +5,7 @@
 
 NAME=gpsd
 DAEMON=/usr/sbin/$NAME
-DEVICES="-n /dev/ttyACM0"
+DEVICES="-n -F /var/run/gpsd.sock /dev/ttyACM0"
 PIDFILE=/var/run/$NAME.pid
 
 start() {
