@@ -1,0 +1,64 @@
+#!/bin/sh
+#
+# S39btstate - carry Bluetooth pairings across firmware updates.
+#
+# /var/lib/bluetooth lives on the root filesystem, which a new image
+# overwrites, so every update would otherwise cost the operator a
+# re-pairing of every headset they own.
+#
+# /mnt survives, but it is VFAT: no colons in names, no permission bits.
+# A pairing directory is named after the controller address and contains
+# colons in every path, so it cannot be copied there as files. A tar
+# archive can - it keeps names and modes in its own headers.
+#
+# Runs before S40bluetoothd on the way up, and after it on the way down,
+# so pairings made during this session are saved.
+
+ARCHIVE=/mnt/bluetooth.tar
+STATE=/var/lib/bluetooth
+
+start() {
+    [ -f "$ARCHIVE" ] || return 0
+
+    # Only restore into an empty state directory. A running system with
+    # its own pairings must not be overwritten by a stale archive.
+    if [ -d "$STATE" ] && [ -n "$(ls -A "$STATE" 2>/dev/null)" ]; then
+        return 0
+    fi
+
+    printf 'Restoring Bluetooth pairings: '
+    mkdir -p /var/lib
+    if tar xf "$ARCHIVE" -C /var/lib 2>/dev/null; then
+        echo "OK"
+    else
+        echo "FAIL"
+    fi
+    return 0
+}
+
+stop() {
+    [ -d "$STATE" ] || return 0
+    [ -n "$(ls -A "$STATE" 2>/dev/null)" ] || return 0
+    [ -d /mnt ] || return 0
+
+    printf 'Saving Bluetooth pairings: '
+    # Write beside the target and rename, so an interrupted save cannot
+    # leave a truncated archive where a good one used to be.
+    if tar cf "$ARCHIVE.new" -C /var/lib bluetooth 2>/dev/null; then
+        mv -f "$ARCHIVE.new" "$ARCHIVE"
+        echo "OK"
+    else
+        rm -f "$ARCHIVE.new"
+        echo "FAIL"
+    fi
+    return 0
+}
+
+case "$1" in
+    start)   start;;
+    stop)    stop;;
+    restart) stop; start;;
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+esac
