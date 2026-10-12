@@ -14,8 +14,14 @@ if grep -q '^enabled=0' /mnt/bt.conf 2>/dev/null; then
     exit 0
 fi
 
+# Hidden and not pairable, as bt_up.sh leaves it. Devices paired before
+# (a phone for CAT, a headset, a keyboard) still connect. New ones pair
+# through the GUI's Bluetooth window, which opens pairing for a few
+# minutes on Scan. No bt-agent: it accepted every pairing request, from
+# anyone in range, until the window was opened. The CAT server only
+# accepts paired devices.
 /usr/bin/bluetoothctl power on
-/usr/bin/bluetoothctl discoverable on
-/usr/bin/bt-agent --capability=NoInputNoOutput >/dev/null 2>&1 &
+/usr/bin/bluetoothctl discoverable off
+/usr/bin/bluetoothctl pairable off
 
 /usr/bin/sdptool add SP

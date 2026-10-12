@@ -64,8 +64,7 @@ fi
 # few minutes when Scan is pressed, and its agent refuses pairing requests
 # the rest of the time, so nobody in range can pair with the radio
 # unasked. For the same reason no bt-agent (which accepts everything) is
-# started here; bt_start.sh still starts one at boot, and the GUI's agent
-# takes the default place from it.
+# started, here or in bt_start.sh at boot.
 btctl power on
 btctl system-alias "$NAME"
 btctl discoverable off
