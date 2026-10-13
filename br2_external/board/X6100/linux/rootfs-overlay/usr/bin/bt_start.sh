@@ -6,8 +6,8 @@ fi
 
 # The GUI's Bluetooth window remembers its On/Off in /mnt/bt.conf. If the
 # operator switched Bluetooth off there, keep it off across reboots (the
-# window brings it up again with bt_up.sh). Without that file nothing
-# changes: the adapter comes up as before, for CAT.
+# window brings it up again with bt_up.sh). Otherwise the adapter comes up
+# powered, hidden and not pairable (below), with the CAT Serial Port record.
 if grep -q '^enabled=0' /mnt/bt.conf 2>/dev/null; then
     /usr/bin/bluetoothctl power off >/dev/null 2>&1
     rfkill block bluetooth 2>/dev/null
@@ -20,8 +20,34 @@ fi
 # minutes on Scan. No bt-agent: it accepted every pairing request, from
 # anyone in range, until the window was opened. The CAT server only
 # accepts paired devices.
-/usr/bin/bluetoothctl power on
-/usr/bin/bluetoothctl discoverable off
-/usr/bin/bluetoothctl pairable off
+#
+# udev runs this as soon as hci0 appears, which can be before bluetoothd
+# has the controller: bluetoothctl then only prints "No default controller
+# available" and changes nothing. And bluetoothd restores Discoverable
+# from /var/lib/bluetooth (kept across images by S39btstate), so a radio
+# that ran the old bt_start.sh came back visible. So: repeat until
+# bluetoothctl shows it powered, hidden and not pairable, at most 20 s.
+# main.conf's DiscoverableTimeout / PairableTimeout are the safety net.
+btctl() { /usr/bin/bluetoothctl "$@" >/dev/null 2>&1; }
+bt_hidden() {
+    s=$(/usr/bin/bluetoothctl show 2>/dev/null)
+    echo "$s" | grep -q "Powered: yes" &&
+        echo "$s" | grep -q "Discoverable: no" &&
+        echo "$s" | grep -q "Pairable: no"
+}
+i=0
+while :; do
+    btctl power on
+    btctl discoverable off
+    btctl pairable off
+    bt_hidden && break
+    i=$((i + 1))
+    if [ $i -ge 40 ]; then
+        echo "bt_start: not hidden after 20 s:$(/usr/bin/bluetoothctl show 2>/dev/null |
+            grep -E 'Powered|Discoverable|Pairable' | tr -s ' \t\n' ' ')" >&2
+        break
+    fi
+    sleep 0.5
+done
 
 /usr/bin/sdptool add SP
