@@ -50,4 +50,12 @@ while :; do
     sleep 0.5
 done
 
-/usr/bin/sdptool add SP
+# The CAT Serial Port record (channel 1), only if it isn't there yet:
+# bluetoothd keeps records across a new hci0 (WiFi off/on), so adding it
+# every time piled up copies. The same check as bt_up.sh's.
+if ! /usr/bin/sdptool browse local 2>/dev/null | awk '
+        /^Service Name:/ { n = substr($0, 15) }
+        /Channel:/       { if (n == "Serial Port" && $2 == 1) found = 1 }
+        END              { exit !found }'; then
+    /usr/bin/sdptool add SP
+fi
