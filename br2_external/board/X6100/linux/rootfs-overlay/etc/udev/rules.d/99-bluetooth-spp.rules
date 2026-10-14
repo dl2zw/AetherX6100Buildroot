@@ -1,6 +1,7 @@
 # SUBSYSTEM=="bluetooth", ACTION=="add", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", RUN+="/usr/bin/bt_start.sh"
-# On add device
-SUBSYSTEM=="bluetooth", KERNEL=="hci*", ACTION=="add", RUN+="/usr/bin/bt_start.sh"
-
-# On remove device
-SUBSYSTEM=="bluetooth", KERNEL=="hci*", ACTION=="remove", RUN+="/usr/bin/killall -9 rfcomm bt-agent"
+# On add of the adapter itself (DEVTYPE "host"). Every connection to it
+# appears as a child device, hci0:<handle> with DEVTYPE "link", which
+# "hci*" matched as well: bt_start.sh ran on every connect and made the
+# radio hidden (before, visible with a new bt-agent) in the middle of a
+# Scan, and added another Serial Port record each time.
+SUBSYSTEM=="bluetooth", KERNEL=="hci*", ENV{DEVTYPE}=="host", ACTION=="add", RUN+="/usr/bin/bt_start.sh"
