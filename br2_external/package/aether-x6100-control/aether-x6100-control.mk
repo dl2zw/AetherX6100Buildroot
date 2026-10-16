@@ -5,7 +5,7 @@
 ################################################################################
 
 AETHER_X6100_CONTROL_VERSION = v0.16.3
-AETHER_X6100_CONTROL_SITE = https://github.com/gdyuldin/X6100Control
+AETHER_X6100_CONTROL_SITE = https://github.com/OpenX6100/X6100Control
 AETHER_X6100_CONTROL_SITE_METHOD = git
 AETHER_X6100_CONTROL_LICENSE = GPLv2
 
