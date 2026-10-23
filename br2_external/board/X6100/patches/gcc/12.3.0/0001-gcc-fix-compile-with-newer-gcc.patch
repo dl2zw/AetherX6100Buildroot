@@ -1,0 +1,590 @@
+diff --color -Naur b/gcc/system.h a/gcc/system.h
+--- b/gcc/system.h	2023-05-08 14:14:40.000000000 +0200
++++ a/gcc/system.h	2026-10-23 09:57:41.152751278 +0200
+@@ -206,6 +206,14 @@
+ /* There are an extraordinary number of issues with <ctype.h>.
+    The last straw is that it varies with the locale.  Use libiberty's
+    replacement instead.  */
++#ifdef __cplusplus
++#include <string>
++#include <algorithm>
++#include <new>
++#include <utility>
++#include <type_traits>
++#include <memory>
++#endif
+ #include "safe-ctype.h"
+ 
+ #include <sys/types.h>
+diff --color -Naur b/libcody/buffer.cc a/libcody/buffer.cc
+--- b/libcody/buffer.cc	2023-05-08 14:14:41.000000000 +0200
++++ a/libcody/buffer.cc	2026-10-23 09:55:08.137923950 +0200
+@@ -30,7 +30,7 @@
+ namespace Cody {
+ namespace Detail {
+ 
+-static const char CONTINUE = S2C(u8";");
++static const char CONTINUE = S2C(";");
+ 
+ void MessageBuffer::BeginLine ()
+ {
+@@ -38,9 +38,9 @@
+     {
+       // Terminate the previous line with a continuation
+       buffer.reserve (buffer.size () + 3);
+-      buffer.push_back (S2C(u8" "));
++      buffer.push_back (S2C(" "));
+       buffer.push_back (CONTINUE);
+-      buffer.push_back (S2C(u8"\n"));
++      buffer.push_back (S2C("\n"));
+     }
+   lastBol = buffer.size ();
+ }
+@@ -65,11 +65,11 @@
+       for (size_t ix = len; ix--;)
+ 	{
+ 	  unsigned char c = (unsigned char)str[ix];
+-	  if (!((c >= S2C(u8"a") && c <= S2C(u8"z"))
+-		|| (c >= S2C(u8"A") && c <= S2C(u8"Z"))
+-		|| (c >= S2C(u8"0") && c <= S2C(u8"9"))
+-		|| c == S2C(u8"-") || c == S2C(u8"+") || c == S2C(u8"_")
+-		|| c == S2C(u8"/") || c == S2C(u8"%") || c == S2C(u8".")))
++	  if (!((c >= S2C("a") && c <= S2C("z"))
++		|| (c >= S2C("A") && c <= S2C("Z"))
++		|| (c >= S2C("0") && c <= S2C("9"))
++		|| c == S2C("-") || c == S2C("+") || c == S2C("_")
++		|| c == S2C("/") || c == S2C("%") || c == S2C(".")))
+ 	    {
+ 	      quote = true;
+ 	      break;
+@@ -81,7 +81,7 @@
+   buffer.reserve (buffer.size () + len * (quote ? 3 : 1) + 2);
+ 
+   if (quote)
+-    buffer.push_back (S2C(u8"'"));
++    buffer.push_back (S2C("'"));
+ 
+   for (auto *end = str + len; str != end;)
+     {
+@@ -93,8 +93,8 @@
+ 	for (e = str; e != end; ++e)
+ 	  {
+ 	    unsigned char c = (unsigned char)*e;
+-	    if (c < S2C(u8" ") || c == 0x7f
+-		|| c == S2C(u8"\\") || c == S2C(u8"'"))
++	    if (c < S2C(" ") || c == 0x7f
++		|| c == S2C("\\") || c == S2C("'"))
+ 	      break;
+ 	  }
+       buffer.insert (buffer.end (), str, e);
+@@ -103,19 +103,19 @@
+       if (str == end)
+ 	break;
+ 
+-      buffer.push_back (S2C(u8"\\"));
++      buffer.push_back (S2C("\\"));
+       switch (unsigned char c = (unsigned char)*str++)
+ 	{
+-	case S2C(u8"\t"):
+-	  c = S2C(u8"t");
++	case S2C("\t"):
++	  c = S2C("t");
+ 	  goto append;
+ 
+-	case S2C(u8"\n"):
+-	  c = S2C(u8"n");
++	case S2C("\n"):
++	  c = S2C("n");
+ 	  goto append;
+ 
+-	case S2C(u8"'"):
+-	case S2C(u8"\\"):
++	case S2C("'"):
++	case S2C("\\"):
+ 	append:
+ 	  buffer.push_back (c);
+ 	  break;
+@@ -127,16 +127,16 @@
+ 	      shift -= 4;
+ 
+ 	      char nibble = (c >> shift) & 0xf;
+-	      nibble += S2C(u8"0");
+-	      if (nibble > S2C(u8"9"))
+-		nibble += S2C(u8"a") - (S2C(u8"9") + 1);
++	      nibble += S2C("0");
++	      if (nibble > S2C("9"))
++		nibble += S2C("a") - (S2C("9") + 1);
+ 	      buffer.push_back (nibble);
+ 	    }
+ 	}
+     }
+ 
+   if (quote)
+-    buffer.push_back (S2C(u8"'"));
++    buffer.push_back (S2C("'"));
+ }
+ 
+ void MessageBuffer::Append (char c)
+@@ -205,7 +205,7 @@
+   bool more = true;
+   for (;;)
+     {
+-      auto newline = std::find (iter, buffer.end (), S2C(u8"\n"));
++      auto newline = std::find (iter, buffer.end (), S2C("\n"));
+       if (newline == buffer.end ())
+ 	break;
+       more = newline != buffer.begin () && newline[-1] == CONTINUE;
+@@ -233,7 +233,7 @@
+   if (IsAtEnd ())
+     return ENOENT;
+ 
+-  Assert (buffer.back () == S2C(u8"\n"));
++  Assert (buffer.back () == S2C("\n"));
+ 
+   auto iter = buffer.begin () + lastBol;
+ 
+@@ -242,25 +242,25 @@
+       char c = *iter;
+ 
+       ++iter;
+-      if (c == S2C(u8" ") || c == S2C(u8"\t"))
++      if (c == S2C(" ") || c == S2C("\t"))
+ 	{
+ 	  word = nullptr;
+ 	  continue;
+ 	}
+ 
+-      if (c == S2C(u8"\n"))
++      if (c == S2C("\n"))
+ 	break;
+ 
+       if (c == CONTINUE)
+ 	{
+ 	  // Line continuation
+-	  if (word || *iter != S2C(u8"\n"))
++	  if (word || *iter != S2C("\n"))
+ 	    goto malformed;
+ 	  ++iter;
+ 	  break;
+ 	}
+ 
+-      if (c <= S2C(u8" ") || c >= 0x7f)
++      if (c <= S2C(" ") || c >= 0x7f)
+ 	goto malformed;
+ 
+       if (!word)
+@@ -269,20 +269,20 @@
+ 	  word = &result.back ();
+ 	}
+ 
+-      if (c == S2C(u8"'"))
++      if (c == S2C("'"))
+ 	{
+ 	  // Quoted word
+ 	  for (;;)
+ 	    {
+ 	      c = *iter;
+ 
+-	      if (c == S2C(u8"\n"))
++	      if (c == S2C("\n"))
+ 		{
+ 		malformed:;
+ 		  result.clear ();
+-		  iter = std::find (iter, buffer.end (), S2C(u8"\n"));
++		  iter = std::find (iter, buffer.end (), S2C("\n"));
+ 		  auto back = iter;
+-		  if (back[-1] == CONTINUE  && back[-2] == S2C(u8" "))
++		  if (back[-1] == CONTINUE  && back[-2] == S2C(" "))
+ 		    // Smells like a line continuation
+ 		    back -= 2;
+ 		  result.emplace_back (&buffer[lastBol],
+@@ -292,35 +292,35 @@
+ 		  return EINVAL;
+ 		}
+ 
+-	      if (c < S2C(u8" ") || c >= 0x7f)
++	      if (c < S2C(" ") || c >= 0x7f)
+ 		goto malformed;
+ 
+ 	      ++iter;
+-	      if (c == S2C(u8"'"))
++	      if (c == S2C("'"))
+ 		break;
+ 
+-	      if (c == S2C(u8"\\"))
++	      if (c == S2C("\\"))
+ 		// escape
+ 		switch (c = *iter)
+ 		  {
+-		    case S2C(u8"\\"):
+-		    case S2C(u8"'"):
++		    case S2C("\\"):
++		    case S2C("'"):
+ 		      ++iter;
+ 		      break;
+ 
+-		    case S2C(u8"n"):
+-		      c = S2C(u8"\n");
++		    case S2C("n"):
++		      c = S2C("\n");
+ 		      ++iter;
+ 		      break;
+ 
+-		    case S2C(u8"_"):
++		    case S2C("_"):
+ 		      // We used to escape SPACE as \_, so accept that
+-		      c = S2C(u8" ");
++		      c = S2C(" ");
+ 		      ++iter;
+ 		      break;
+ 
+-		    case S2C(u8"t"):
+-		      c = S2C(u8"\t");
++		    case S2C("t"):
++		      c = S2C("\t");
+ 		      ++iter;
+ 		      break;
+ 
+@@ -330,22 +330,22 @@
+ 			for (unsigned nibble = 0; nibble != 2; nibble++)
+ 			  {
+ 			    c = *iter;
+-			    if (c < S2C(u8"0"))
++			    if (c < S2C("0"))
+ 			      {
+ 				if (!nibble)
+ 				  goto malformed;
+ 				break;
+ 			      }
+-			    else if (c <= S2C(u8"9"))
+-			      c -= S2C(u8"0");
+-			    else if (c < S2C(u8"a"))
++			    else if (c <= S2C("9"))
++			      c -= S2C("0");
++			    else if (c < S2C("a"))
+ 			      {
+ 				if (!nibble)
+ 				  goto malformed;
+ 				break;
+ 			      }
+-			    else if (c <= S2C(u8"f"))
+-			      c -= S2C(u8"a") - 10;
++			    else if (c <= S2C("f"))
++			      c -= S2C("a") - 10;
+ 			    else
+ 			      {
+ 				if (!nibble)
+@@ -378,11 +378,11 @@
+     {
+       size_t pos = lastBol - 1;
+       for (; pos; pos--)
+-	if (buffer[pos-1] == S2C(u8"\n"))
++	if (buffer[pos-1] == S2C("\n"))
+ 	  break;
+ 
+       size_t end = lastBol - 1;
+-      if (buffer[end-1] == CONTINUE && buffer[end-2] == S2C(u8" "))
++      if (buffer[end-1] == CONTINUE && buffer[end-2] == S2C(" "))
+ 	// Strip line continuation
+ 	end -= 2;
+       str.append (&buffer[pos], end - pos);
+diff --color -Naur b/libcody/client.cc a/libcody/client.cc
+--- b/libcody/client.cc	2023-05-08 14:14:41.000000000 +0200
++++ a/libcody/client.cc	2026-10-23 09:55:08.139220894 +0200
+@@ -97,7 +97,7 @@
+ 
+ static Packet CommunicationError (int err)
+ {
+-  std::string e {u8"communication error:"};
++  std::string e {"communication error:"};
+   e.append (strerror (err));
+ 
+   return Packet (Client::PC_ERROR, std::move (e));
+@@ -110,33 +110,33 @@
+     {
+       if (e == EINVAL)
+ 	{
+-	  std::string msg (u8"malformed string '");
++	  std::string msg ("malformed string '");
+ 	  msg.append (words[0]);
+-	  msg.append (u8"'");
++	  msg.append ("'");
+ 	  return Packet (Client::PC_ERROR, std::move (msg));
+ 	}
+       else
+-	return Packet (Client::PC_ERROR, u8"missing response");
++	return Packet (Client::PC_ERROR, "missing response");
+     }
+ 
+   Assert (!words.empty ());
+-  if (words[0] == u8"ERROR")
++  if (words[0] == "ERROR")
+     return Packet (Client::PC_ERROR,
+-		   words.size () == 2 ? words[1]: u8"malformed error response");
++		   words.size () == 2 ? words[1]: "malformed error response");
+ 
+   if (isLast && !read.IsAtEnd ())
+     return Packet (Client::PC_ERROR,
+-		   std::string (u8"unexpected extra response"));
++		   std::string ("unexpected extra response"));
+ 
+   Assert (code < Detail::RC_HWM);
+   Packet result (responseTable[code] (words));
+   result.SetRequest (code);
+   if (result.GetCode () == Client::PC_ERROR && result.GetString ().empty ())
+     {
+-      std::string msg {u8"malformed response '"};
++      std::string msg {"malformed response '"};
+ 
+       read.LexedLine (msg);
+-      msg.append (u8"'");
++      msg.append ("'");
+       result.GetString () = std::move (msg);
+     }
+   else if (result.GetCode () == Client::PC_CONNECT)
+@@ -199,7 +199,7 @@
+ 			  size_t alen, size_t ilen)
+ {
+   write.BeginLine ();
+-  write.AppendWord (u8"HELLO");
++  write.AppendWord ("HELLO");
+   write.AppendInteger (Version);
+   write.AppendWord (agent, true, alen);
+   write.AppendWord (ident, true, ilen);
+@@ -211,14 +211,14 @@
+ // HELLO $version $agent [$flags]
+ Packet ConnectResponse (std::vector<std::string> &words)
+ {
+-  if (words[0] == u8"HELLO" && (words.size () == 3 || words.size () == 4))
++  if (words[0] == "HELLO" && (words.size () == 3 || words.size () == 4))
+     {
+       char *eptr;
+       unsigned long val = strtoul (words[1].c_str (), &eptr, 10);
+ 
+       unsigned version = unsigned (val);
+       if (*eptr || version != val || version < Version)
+-	return Packet (Client::PC_ERROR, u8"incompatible version");
++	return Packet (Client::PC_ERROR, "incompatible version");
+       else
+ 	{
+ 	  unsigned flags = 0;
+@@ -231,14 +231,14 @@
+ 	}
+     }
+ 
+-  return Packet (Client::PC_ERROR, u8"");
++  return Packet (Client::PC_ERROR, "");
+ }
+ 
+ // MODULE-REPO
+ Packet Client::ModuleRepo ()
+ {
+   write.BeginLine ();
+-  write.AppendWord (u8"MODULE-REPO");
++  write.AppendWord ("MODULE-REPO");
+   write.EndLine ();
+ 
+   return MaybeRequest (Detail::RC_MODULE_REPO);
+@@ -247,16 +247,16 @@
+ // PATHNAME $dir | ERROR
+ Packet PathnameResponse (std::vector<std::string> &words)
+ {
+-  if (words[0] == u8"PATHNAME" && words.size () == 2)
++  if (words[0] == "PATHNAME" && words.size () == 2)
+     return Packet (Client::PC_PATHNAME, std::move (words[1]));
+ 
+-  return Packet (Client::PC_ERROR, u8"");
++  return Packet (Client::PC_ERROR, "");
+ }
+ 
+ // OK or ERROR
+ Packet OKResponse (std::vector<std::string> &words)
+ {
+-  if (words[0] == u8"OK")
++  if (words[0] == "OK")
+     return Packet (Client::PC_OK);
+   else
+     return Packet (Client::PC_ERROR,
+@@ -267,7 +267,7 @@
+ Packet Client::ModuleExport (char const *module, Flags flags, size_t mlen)
+ {
+   write.BeginLine ();
+-  write.AppendWord (u8"MODULE-EXPORT");
++  write.AppendWord ("MODULE-EXPORT");
+   write.AppendWord (module, true, mlen);
+   if (flags != Flags::None)
+     write.AppendInteger (unsigned (flags));
+@@ -280,7 +280,7 @@
+ Packet Client::ModuleImport (char const *module, Flags flags, size_t mlen)
+ {
+   write.BeginLine ();
+-  write.AppendWord (u8"MODULE-IMPORT");
++  write.AppendWord ("MODULE-IMPORT");
+   write.AppendWord (module, true, mlen);
+   if (flags != Flags::None)
+     write.AppendInteger (unsigned (flags));
+@@ -293,7 +293,7 @@
+ Packet Client::ModuleCompiled (char const *module, Flags flags, size_t mlen)
+ {
+   write.BeginLine ();
+-  write.AppendWord (u8"MODULE-COMPILED");
++  write.AppendWord ("MODULE-COMPILED");
+   write.AppendWord (module, true, mlen);
+   if (flags != Flags::None)
+     write.AppendInteger (unsigned (flags));
+@@ -306,7 +306,7 @@
+ Packet Client::IncludeTranslate (char const *include, Flags flags, size_t ilen)
+ {
+   write.BeginLine ();
+-  write.AppendWord (u8"INCLUDE-TRANSLATE");
++  write.AppendWord ("INCLUDE-TRANSLATE");
+   write.AppendWord (include, true, ilen);
+   if (flags != Flags::None)
+     write.AppendInteger (unsigned (flags));
+@@ -319,14 +319,14 @@
+ // PATHNAME $cmifile
+ Packet IncludeTranslateResponse (std::vector<std::string> &words)
+ {
+-  if (words[0] == u8"BOOL" && words.size () == 2)
++  if (words[0] == "BOOL" && words.size () == 2)
+     {
+-      if (words[1] == u8"FALSE")
++      if (words[1] == "FALSE")
+ 	return Packet (Client::PC_BOOL, 0);
+-      else if (words[1] == u8"TRUE")
++      else if (words[1] == "TRUE")
+ 	return Packet (Client::PC_BOOL, 1);
+       else
+-	return Packet (Client::PC_ERROR, u8"");
++	return Packet (Client::PC_ERROR, "");
+     }
+   else
+     return PathnameResponse (words);
+diff --color -Naur b/libcody/cody.hh a/libcody/cody.hh
+--- b/libcody/cody.hh	2023-05-08 14:14:41.000000000 +0200
++++ a/libcody/cody.hh	2026-10-23 09:55:08.144588214 +0200
+@@ -74,7 +74,7 @@
+   /// the buffer.  Use before a sequence of Write calls.
+   void PrepareToWrite ()
+   {
+-    buffer.push_back (u8"\n"[0]);
++    buffer.push_back ("\n"[0]);
+     lastBol = 0;
+   }
+   ///
+@@ -110,7 +110,7 @@
+   /// Add whitespace word separator.  Multiple adjacent whitespace is fine.
+   void Space ()
+   {
+-    Append (Detail::S2C(u8" "));
++    Append (Detail::S2C(" "));
+   }
+ 
+ public:
+diff --color -Naur b/libcody/server.cc a/libcody/server.cc
+--- b/libcody/server.cc	2023-05-08 14:14:41.000000000 +0200
++++ a/libcody/server.cc	2026-10-23 09:55:08.143706751 +0200
+@@ -36,12 +36,12 @@
+   const requestTable[Detail::RC_HWM] =
+   {
+     // Same order as enum RequestCode
+-    RequestPair {u8"HELLO", nullptr},
+-    RequestPair {u8"MODULE-REPO", ModuleRepoRequest},
+-    RequestPair {u8"MODULE-EXPORT", ModuleExportRequest},
+-    RequestPair {u8"MODULE-IMPORT", ModuleImportRequest},
+-    RequestPair {u8"MODULE-COMPILED", ModuleCompiledRequest},
+-    RequestPair {u8"INCLUDE-TRANSLATE", IncludeTranslateRequest},
++    RequestPair {"HELLO", nullptr},
++    RequestPair {"MODULE-REPO", ModuleRepoRequest},
++    RequestPair {"MODULE-EXPORT", ModuleExportRequest},
++    RequestPair {"MODULE-IMPORT", ModuleImportRequest},
++    RequestPair {"MODULE-COMPILED", ModuleCompiledRequest},
++    RequestPair {"INCLUDE-TRANSLATE", IncludeTranslateRequest},
+   };
+ }
+ 
+@@ -135,21 +135,21 @@
+ 	  std::string msg;
+ 
+ 	  if (err > 0)
+-	    msg = u8"error processing '";
++	    msg = "error processing '";
+ 	  else if (ix >= Detail::RC_HWM)
+-	    msg = u8"unrecognized '";
++	    msg = "unrecognized '";
+ 	  else if (IsConnected () && ix == Detail::RC_CONNECT)
+-	    msg = u8"already connected '";
++	    msg = "already connected '";
+ 	  else if (!IsConnected () && ix != Detail::RC_CONNECT)
+-	    msg = u8"not connected '";
++	    msg = "not connected '";
+ 	  else
+-	    msg = u8"malformed '";
++	    msg = "malformed '";
+ 
+ 	  read.LexedLine (msg);
+-	  msg.append (u8"'");
++	  msg.append ("'");
+ 	  if (err > 0)
+ 	    {
+-	      msg.append (u8" ");
++	      msg.append (" ");
+ 	      msg.append (strerror (err));
+ 	    }
+ 	  resolver->ErrorResponse (this, std::move (msg));
+@@ -176,7 +176,7 @@
+     return nullptr;
+ 
+   if (words.size () == 3)
+-    words.emplace_back (u8"");
++    words.emplace_back ("");
+   unsigned version = ParseUnsigned (words[1]);
+   if (version == ~0u)
+     return nullptr;
+@@ -265,7 +265,7 @@
+ void Server::ErrorResponse (char const *error, size_t elen)
+ {
+   write.BeginLine ();
+-  write.AppendWord (u8"ERROR");
++  write.AppendWord ("ERROR");
+   write.AppendWord (error, true, elen);
+   write.EndLine ();
+ }
+@@ -273,7 +273,7 @@
+ void Server::OKResponse ()
+ {
+   write.BeginLine ();
+-  write.AppendWord (u8"OK");
++  write.AppendWord ("OK");
+   write.EndLine ();
+ }
+ 
+@@ -282,7 +282,7 @@
+   is_connected = true;
+ 
+   write.BeginLine ();
+-  write.AppendWord (u8"HELLO");
++  write.AppendWord ("HELLO");
+   write.AppendInteger (Version);
+   write.AppendWord (agent, true, alen);
+   write.EndLine ();
+@@ -291,7 +291,7 @@
+ void Server::PathnameResponse (char const *cmi, size_t clen)
+ {
+   write.BeginLine ();
+-  write.AppendWord (u8"PATHNAME");
++  write.AppendWord ("PATHNAME");
+   write.AppendWord (cmi, true, clen);
+   write.EndLine ();
+ }
+@@ -299,8 +299,8 @@
+ void Server::BoolResponse (bool truthiness)
+ {
+   write.BeginLine ();
+-  write.AppendWord (u8"BOOL");
+-  write.AppendWord (truthiness ? u8"TRUE" : u8"FALSE");
++  write.AppendWord ("BOOL");
++  write.AppendWord (truthiness ? "TRUE" : "FALSE");
+   write.EndLine ();
+ }
+ 

@@ -1,0 +1,19 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -44,13 +44,13 @@
+ #  Default=false (use the default size of time_t)
+ # 
+ 
+-cmake_minimum_required(VERSION 2.8.9)
++cmake_minimum_required(VERSION 3.5)
+ 
+ project(libical C CXX)
+ 
+ if(COMMAND cmake_policy)
+   cmake_policy(SET CMP0003 NEW)
+-  cmake_policy(SET CMP0005 OLD)
++  cmake_policy(SET CMP0005 NEW)
+ endif()
+ 
+ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules)

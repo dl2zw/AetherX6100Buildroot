@@ -1,0 +1,13 @@
+diff --color -Naur a/include/pidfd-utils.h b/include/pidfd-utils.h
+--- a/include/pidfd-utils.h	2022-02-17 11:28:41.000000000 +0100
++++ b/include/pidfd-utils.h	2025-09-21 10:07:31.819564771 +0200
+@@ -4,6 +4,9 @@
+ #ifdef HAVE_SYS_SYSCALL_H
+ # include <sys/syscall.h>
+ # if defined(SYS_pidfd_send_signal) && defined(SYS_pidfd_open)
++#  if (__GNUC__ > 12)
++#  include <sys/pidfd.h>
++#  endif
+ #  include <sys/types.h>
+ 
+ #  ifndef HAVE_PIDFD_SEND_SIGNAL
